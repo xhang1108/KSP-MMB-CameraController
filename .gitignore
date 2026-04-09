@@ -1,0 +1,24 @@
+# KSP Mod Git Ignore
+
+# Binaries and Build Outputs
+*.dll
+*.pdb
+bin/
+obj/
+
+# Debug and Logs
+*.log
+*.tmp
+*.exe
+compile_output.txt
+
+# IDE Metadata
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# System Files
+.DS_Store
+Thumbs.db
