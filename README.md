@@ -1,12 +1,19 @@
 # KSP-MMB-CameraController
 
-A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera experience, using the Middle Mouse Button (MMB) for orbiting. 
+A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera experience, specifically optimized for Flight, VAB, and SPH modes.
 
 ## Controls
 
+### Flight Mode
 | Action | Original Function | New Function |
 | :--- | :--- | :--- |
-| **Middle Mouse Button (MMB) Drag** | Zoom (VAB/SPH) / Offset (Flight) | **Orbit View** |
+| **Middle Mouse Button (MMB)** | FreeLook / Offset | **Orbit View** |
+| **Right Mouse Button (RMB)** | Orbit View | **FreeLook / Offset** |
+
+### VAB / SPH (Editor)
+| Action | Original Function | New Function |
+| :--- | :--- | :--- |
+| **Middle Mouse Button (MMB)** | Zoom | **Orbit View** |
 
 ## Installation
 
@@ -31,6 +38,3 @@ Run the following command in the project root:
 ```powershell
 ./build.ps1
 ```
-
-This will automatically generate `BlenderCameraControls.dll` in the root directory.
-
