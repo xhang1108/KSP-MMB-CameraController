@@ -14,59 +14,11 @@ public class BlenderCameraMod : MonoBehaviour
         DontDestroyOnLoad(this);
         new Harmony("com.antigravity.blendercamera").PatchAll();
         initialized = true;
-        gameObject.AddComponent<CameraDebugUI>();
         Debug.Log("[BlenderCamera] Harmony patches applied.");
     }
 }
 
-// ==================== Debug UI (All scenes) ====================
 
-public class CameraDebugUI : MonoBehaviour
-{
-    private bool showGUI = true;
-    private Rect windowRect = new Rect(20, 100, 380, 620);
-    private Vector2 scrollPos;
-
-    void Update() { if (Input.GetKeyDown(KeyCode.F11)) showGUI = !showGUI; }
-
-    void OnGUI()
-    {
-        if (!showGUI) return;
-        if (HighLogic.LoadedScene != GameScenes.EDITOR && HighLogic.LoadedScene != GameScenes.FLIGHT) return;
-        windowRect = GUI.Window(99, windowRect, DrawWindow, "Camera Inspector (F11)");
-    }
-
-    void DrawWindow(int windowID)
-    {
-        MonoBehaviour cam = null;
-        if (HighLogic.LoadedScene == GameScenes.EDITOR)
-            cam = (MonoBehaviour)FindObjectOfType<VABCamera>() ?? (MonoBehaviour)FindObjectOfType<SPHCamera>();
-        else if (HighLogic.LoadedScene == GameScenes.FLIGHT)
-            cam = (MonoBehaviour)FindObjectOfType<FlightCamera>();
-
-        if (cam == null) { GUI.Label(new Rect(10, 20, 330, 20), "No camera found."); GUI.DragWindow(); return; }
-
-        float y = 20;
-        GUI.Label(new Rect(10, y, 360, 20), "Camera: " + cam.GetType().Name); y += 20;
-
-        scrollPos = GUI.BeginScrollView(new Rect(10, y, 360, 570), scrollPos, new Rect(0, 0, 330, 3000));
-        float sy = 0;
-        System.Type type = cam.GetType();
-        while (type != null && type != typeof(MonoBehaviour))
-        {
-            foreach (var f in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) {
-                try {
-                    object val = f.GetValue(cam);
-                    if (val is float || val is Vector3 || val is bool || val is int || val is Transform)
-                    { GUI.Label(new Rect(5, sy, 330, 20), f.Name + ": " + val); sy += 20; }
-                } catch { }
-            }
-            type = type.BaseType;
-        }
-        GUI.EndScrollView();
-        GUI.DragWindow();
-    }
-}
 
 // ==================== Input Interceptors ====================
 
@@ -298,7 +250,6 @@ public static class PatchHelper
             }
             yield return inst;
         }
-        Debug.Log("[BlenderCamera] Transpiler redirected " + count + " calls in " + interceptorType.Name);
     }
 }
 
