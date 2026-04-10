@@ -7,13 +7,15 @@ A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera
 ### Flight Mode
 | Action | Original Function | New Function |
 | :--- | :--- | :--- |
-| **Middle Mouse Button (MMB)** | FreeLook / Offset | **Orbit View** |
-| **Right Mouse Button (RMB)** | Orbit View | **FreeLook / Offset** |
+| **Middle Mouse (Drag)** | FreeLook / Offset | **Orbit** |
+| **Right Mouse Button (RMB)** | Orbit | **FreeLook / Offset** |
 
 ### VAB / SPH (Editor)
 | Action | Original Function | New Function |
 | :--- | :--- | :--- |
-| **Middle Mouse Button (MMB)** | Zoom | **Orbit View** |
+| **Middle Mouse (Drag)** | Zoom | **Orbit** |
+| **Scroll Wheel** | Vertical Pan | **Zoom** |
+| **Shift + Scroll Wheel** | Zoom | **Vertical Pan** |
 
 ## Installation
 
