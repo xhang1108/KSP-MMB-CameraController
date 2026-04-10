@@ -1,4 +1,6 @@
-$cmdArgs = @("/target:library", "/out:BlenderCameraControls.dll")
-Get-ChildItem -Filter *.dll | Where-Object { $_.Name -notmatch "BlenderCamera" } | ForEach-Object { $cmdArgs += "/reference:" + $_.Name }
-$cmdArgs += "BlenderCameraControls.cs"
-& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" $cmdArgs
+$csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+$dlls = Get-ChildItem -Recurse *.dll | Where { $_.Name -ne "BlenderCameraControls.dll" } | Group-Object Name | ForEach-Object { $_.Group[0].FullName }
+$args = @("/t:library", "/out:BlenderCameraControls.dll")
+foreach ($dll in $dlls) { $args += "/r:$dll" }
+$args += "BlenderCameraControls.cs"
+& $csc $args

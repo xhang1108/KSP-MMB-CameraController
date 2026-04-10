@@ -13,7 +13,7 @@ obj/
 compile_output.txt
 
 # IDE Metadata
-.vs/
+.vs
 .vscode/
 .idea/
 *.user

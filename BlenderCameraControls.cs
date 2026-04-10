@@ -1,166 +1,82 @@
-using System;
 using UnityEngine;
 using HarmonyLib;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Reflection.Emit;
 
 [KSPAddon(KSPAddon.Startup.Instantly, true)]
 public class BlenderCameraMod : MonoBehaviour
 {
-    private static Harmony harmony;
-
+    private static bool initialized = false;
     void Awake()
     {
+        if (initialized) return;
         DontDestroyOnLoad(this);
-        if (harmony != null) return;
-        try
-        {
-            harmony = new Harmony("com.antigravity.blendercamera");
-            
-            // 1. VAB Camera
-            TryPatch(typeof(VABCamera), "UpdateCamera", 
-                typeof(VABPatches).GetMethod("Prefix"), 
-                typeof(VABPatches).GetMethod("Postfix"), null);
-
-            // 2. SPH Camera
-            TryPatch(typeof(SPHCamera), "Update", 
-                typeof(SPHPatches).GetMethod("Prefix"), 
-                typeof(SPHPatches).GetMethod("Postfix"), null);
-
-            // 3. Flight Camera
-            TryPatch(typeof(FlightCamera), "LateUpdate", 
-                typeof(FlightPatches).GetMethod("Prefix"), 
-                typeof(FlightPatches).GetMethod("Postfix"), 
-                typeof(FlightPatches).GetMethod("Transpiler"));
-
-            Debug.Log("[BlenderCamera] Consolidated MMB-Only mod initialized successfully.");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("[BlenderCamera] Critical failure during initialization: " + e.Message);
-        }
-    }
-
-    private void TryPatch(Type type, string methodName, MethodInfo pre, MethodInfo post, MethodInfo trans)
-    {
-        if (type == null) return;
-        var target = type.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (target == null) return;
-        
-        harmony.Patch(target, 
-            pre != null ? new HarmonyMethod(pre) : null, 
-            post != null ? new HarmonyMethod(post) : null, 
-            trans != null ? new HarmonyMethod(trans) : null);
+        new Harmony("com.antigravity.blendercamera").PatchAll();
+        initialized = true;
+        Debug.Log("[BlenderCamera] Mod initialized with strong-typed patches.");
     }
 }
 
 public static class InputInterceptor
 {
+    // Block button 2 (MMB) for native code, allow button 1 (RMB)
     public static bool GetMouseButton(int button)
     {
-        // Block button 1 (RMB) and 2 (MMB) from native FlightCamera code
-        // This stops native Rotate (RMB) and native FreeLook (MMB)
-        if (button == 1 || button == 2) return false;
-        return Input.GetMouseButton(button);
+        return button == 2 ? false : UnityEngine.Input.GetMouseButton(button);
     }
 }
 
-public class CamStateSnapshot
-{
-    public float h, p, s, minP, maxP;
-    public Vector3 o;
-}
+public struct CamState { public float h, p; public Vector3? o; }
 
-public static class VABPatches
+public static class PatchHelper
 {
-    public static void Prefix(VABCamera __instance, out CamStateSnapshot __state)
+    public static void DoPrefix(object instance, out CamState state)
     {
-        Traverse t = Traverse.Create(__instance);
-        __state = new CamStateSnapshot {
+        var t = Traverse.Create(instance);
+        state = new CamState {
             h = t.Field("camHdg").GetValue<float>(),
             p = t.Field("camPitch").GetValue<float>(),
-            s = t.Field("orbitSensitivity").GetValue<float>(),
-            o = t.Field("offset").GetValue<Vector3>(),
-            minP = t.Field("minPitch").GetValue<float>(),
-            maxP = t.Field("maxPitch").GetValue<float>()
+            o = t.Field("offset").FieldExists() ? t.Field("offset").GetValue<Vector3>() : (Vector3?)null
         };
     }
 
-    public static void Postfix(VABCamera __instance, CamStateSnapshot __state)
+    public static void DoPostfix(object instance, CamState state)
     {
-        if (Input.GetMouseButton(2))
+        if (UnityEngine.Input.GetMouseButton(2))
         {
-            Traverse t = Traverse.Create(__instance);
-            t.Field("offset").SetValue(__state.o); // Block native Pan by reverting it instantly
-            t.Field("camHdg").SetValue(__state.h + Input.GetAxis("Mouse X") * __state.s);
-            t.Field("camPitch").SetValue(Mathf.Clamp(__state.p - Input.GetAxis("Mouse Y") * __state.s, __state.minP, __state.maxP));
+            var t = Traverse.Create(instance);
+            float s = t.Field("orbitSensitivity").GetValue<float>();
+            // Apply orbit rotation based on snapshot to ensure smoothness
+            t.Field("camHdg").SetValue(state.h + UnityEngine.Input.GetAxis("Mouse X") * s);
+            t.Field("camPitch").SetValue(Mathf.Clamp(state.p - UnityEngine.Input.GetAxis("Mouse Y") * s, 
+                t.Field("minPitch").GetValue<float>(), t.Field("maxPitch").GetValue<float>()));
+            // Revert native panning in VAB/SPH
+            if (state.o.HasValue) t.Field("offset").SetValue(state.o.Value);
         }
     }
 }
 
-public static class SPHPatches
-{
-    public static void Prefix(SPHCamera __instance, out CamStateSnapshot __state)
-    {
-        Traverse t = Traverse.Create(__instance);
-        __state = new CamStateSnapshot {
-            h = t.Field("camHdg").GetValue<float>(),
-            p = t.Field("camPitch").GetValue<float>(),
-            s = t.Field("orbitSensitivity").GetValue<float>(),
-            o = t.Field("offset").GetValue<Vector3>(),
-            minP = t.Field("minPitch").GetValue<float>(),
-            maxP = t.Field("maxPitch").GetValue<float>()
-        };
-    }
-
-    public static void Postfix(SPHCamera __instance, CamStateSnapshot __state)
-    {
-        if (Input.GetMouseButton(2))
-        {
-            Traverse t = Traverse.Create(__instance);
-            t.Field("offset").SetValue(__state.o); // Block native Pan by reverting it instantly
-            t.Field("camHdg").SetValue(__state.h + Input.GetAxis("Mouse X") * __state.s);
-            t.Field("camPitch").SetValue(Mathf.Clamp(__state.p - Input.GetAxis("Mouse Y") * __state.s, __state.minP, __state.maxP));
-        }
-    }
+[HarmonyPatch(typeof(VABCamera), "UpdateCamera")]
+public static class VABPatch {
+    static void Prefix(VABCamera __instance, out CamState __state) { PatchHelper.DoPrefix(__instance, out __state); }
+    static void Postfix(VABCamera __instance, CamState __state) { PatchHelper.DoPostfix(__instance, __state); }
 }
 
-public static class FlightPatches
-{
-    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
-        List<CodeInstruction> codes = new List<CodeInstruction>(instructions);
-        for (int i = 0; i < codes.Count; i++)
-        {
-            MethodInfo mi = codes[i].operand as MethodInfo;
-            if (codes[i].opcode == OpCodes.Call && mi != null && mi.Name == "GetMouseButton" && mi.DeclaringType == typeof(Input))
-            {
-                codes[i].operand = typeof(InputInterceptor).GetMethod("GetMouseButton", new Type[] { typeof(int) });
-            }
-        }
-        return codes;
-    }
+[HarmonyPatch(typeof(SPHCamera), "Update")]
+public static class SPHPatch {
+    static void Prefix(SPHCamera __instance, out CamState __state) { PatchHelper.DoPrefix(__instance, out __state); }
+    static void Postfix(SPHCamera __instance, CamState __state) { PatchHelper.DoPostfix(__instance, __state); }
+}
 
-    public static void Prefix(FlightCamera __instance, out CamStateSnapshot __state)
-    {
-        Traverse t = Traverse.Create(__instance);
-        __state = new CamStateSnapshot {
-            h = t.Field("camHdg").GetValue<float>(),
-            p = t.Field("camPitch").GetValue<float>(),
-            s = t.Field("orbitSensitivity").GetValue<float>(),
-            minP = t.Field("minPitch").GetValue<float>(),
-            maxP = t.Field("maxPitch").GetValue<float>()
-        };
-    }
-
-    public static void Postfix(FlightCamera __instance, CamStateSnapshot __state)
-    {
-        if (Input.GetMouseButton(2))
-        {
-            Traverse t = Traverse.Create(__instance);
-            t.Field("camHdg").SetValue(__state.h + Input.GetAxis("Mouse X") * __state.s);
-            t.Field("camPitch").SetValue(Mathf.Clamp(__state.p - Input.GetAxis("Mouse Y") * __state.s, __state.minP, __state.maxP));
+[HarmonyPatch(typeof(FlightCamera), "LateUpdate")]
+public static class FlightPatch {
+    static void Prefix(FlightCamera __instance, out CamState __state) { PatchHelper.DoPrefix(__instance, out __state); }
+    static void Postfix(FlightCamera __instance, CamState __state) { PatchHelper.DoPostfix(__instance, __state); }
+    [HarmonyTranspiler]
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
+        foreach (var inst in instructions) {
+            if (inst.Calls(AccessTools.Method(typeof(UnityEngine.Input), "GetMouseButton", new[] { typeof(int) })))
+                inst.operand = AccessTools.Method(typeof(InputInterceptor), "GetMouseButton");
+            yield return inst;
         }
     }
 }

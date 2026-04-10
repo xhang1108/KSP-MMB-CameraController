@@ -20,11 +20,7 @@
       <HintPath>.\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>.\UnityEngine.UI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- 請確保你有 0Harmony.dll 在本地目錄或安裝了 Harmony NuGet 包 -->
+    <!-- Ensure you have 0Harmony.dll in the local directory or have the Harmony NuGet package installed -->
     <Reference Include="0Harmony">
       <HintPath>.\0Harmony.dll</HintPath>
       <Private>False</Private>
