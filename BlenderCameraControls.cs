@@ -15,7 +15,7 @@ namespace BlenderCamera
             try {
                 var harmony = new Harmony("com.blender.camera");
                 harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Debug.Log("[BlenderCamera] v1.19 Blender Shortcuts Active");
+                Debug.Log("[BlenderCamera] v1.20 Final Chapter: KSC Seal Active");
             } catch (Exception e) {
                 Debug.LogError("[BlenderCamera] Fatal Patching Error: " + e.Message);
             }
@@ -31,16 +31,28 @@ namespace BlenderCamera
 
         public static bool GetMouseButton(int button) {
             if (IsInternalCall) return UnityEngine.Input.GetMouseButton(button);
+            
+            // EDITOR BLOCKING
             if (HighLogic.LoadedSceneIsEditor) {
                 if (button == 2) return false;
                 if (button == 1 && EditorDriver.editorFacility == EditorFacility.SPH) return false;
             }
+            
+            // FLIGHT BLOCKING
             if (HighLogic.LoadedSceneIsFlight) {
                 if (UnityEngine.Input.GetMouseButton(1) || UnityEngine.Input.GetMouseButton(2)) {
                     if (button != 0) return false;
                 }
             }
+
+            // KSC BLOCKING
+            if (HighLogic.LoadedScene == GameScenes.SPACECENTER) {
+                if (button == 1 || button == 2) return false;
+            }
+
+            // TRACKING BLOCKING
             if (HighLogic.LoadedScene == GameScenes.TRACKSTATION && button == 2) return false;
+
             return UnityEngine.Input.GetMouseButton(button);
         }
 
@@ -53,12 +65,21 @@ namespace BlenderCamera
 
         public static float GetAxis(string axisName) {
             if (IsInternalCall) return UnityEngine.Input.GetAxis(axisName);
+            
             if (HighLogic.LoadedSceneIsEditor) {
                 if (axisName == "Mouse ScrollWheel") return 0f;
                 if (EditorDriver.editorFacility == EditorFacility.SPH && (axisName == "Mouse X" || axisName == "Mouse Y")) {
                     if (UnityEngine.Input.GetMouseButton(1)) return 0f;
                 }
             }
+
+            if (HighLogic.LoadedScene == GameScenes.SPACECENTER) {
+                if (axisName == "Mouse ScrollWheel") return 0f;
+                if (axisName == "Mouse X" || axisName == "Mouse Y") {
+                    if (UnityEngine.Input.GetMouseButton(1) || UnityEngine.Input.GetMouseButton(2)) return 0f;
+                }
+            }
+
             return UnityEngine.Input.GetAxis(axisName);
         }
 
@@ -69,24 +90,39 @@ namespace BlenderCamera
         public static float AxisBinding_GetAxis(AxisBinding binding) {
             if (IsInternalCall) return binding.GetAxis();
             if (HighLogic.LoadedSceneIsEditor && binding == GameSettings.AXIS_MOUSEWHEEL) return 0f;
+            
             if (HighLogic.LoadedSceneIsFlight) {
                 if (UnityEngine.Input.GetMouseButton(1) || UnityEngine.Input.GetMouseButton(2)) {
                     if (binding == GameSettings.AXIS_CAMERA_HDG || binding == GameSettings.AXIS_CAMERA_PITCH) return 0f;
                 }
             }
+
+            if (HighLogic.LoadedScene == GameScenes.SPACECENTER) {
+                if (binding == GameSettings.AXIS_MOUSEWHEEL) return 0f;
+            }
+
             return binding.GetAxis();
         }
 
         public static float AxisBinding_get_scale(AxisBinding binding) {
             if (IsInternalCall) return binding.scale;
             if (HighLogic.LoadedSceneIsEditor && binding == GameSettings.AXIS_MOUSEWHEEL) return 0f;
+            if (HighLogic.LoadedScene == GameScenes.SPACECENTER && binding == GameSettings.AXIS_MOUSEWHEEL) return 0f;
             return binding.scale;
         }
 
         public static bool GetKey(KeyCode key) {
             if (IsInternalCall) return UnityEngine.Input.GetKey(key);
-            if (HighLogic.LoadedSceneIsEditor && key == KeyCode.Mouse2) return false;
-            if (HighLogic.LoadedSceneIsEditor && key == KeyCode.Mouse1 && EditorDriver.editorFacility == EditorFacility.SPH) return false;
+            
+            if (HighLogic.LoadedSceneIsEditor) {
+                if (key == KeyCode.Mouse2) return false;
+                if (key == KeyCode.Mouse1 && EditorDriver.editorFacility == EditorFacility.SPH) return false;
+            }
+
+            if (HighLogic.LoadedScene == GameScenes.SPACECENTER) {
+                if (key == KeyCode.Mouse1 || key == KeyCode.Mouse2) return false;
+            }
+
             return UnityEngine.Input.GetKey(key);
         }
         public static bool GetKeyDown(KeyCode key) {
@@ -122,7 +158,6 @@ namespace BlenderCamera
                 }
                 if (UnityEngine.Input.GetMouseButton(2)) {
                     if (UnityEngine.Input.GetKey(KeyCode.LeftShift)) {
-                        // Shift + MMB Panning for VAB (Height tuning)
                         float my = UnityEngine.Input.GetAxis("Mouse Y");
                         float newH = Mathf.Clamp(___scrollHeight + (my * ___distance * 0.05f), ___minHeight, ___maxHeight);
                         ___scrollHeight = newH; ___clampedScrollHeight = newH;
@@ -138,9 +173,7 @@ namespace BlenderCamera
             ___mouseZoomSensitivity = __state.originalZoomSens; 
             return __exception; 
         }
-        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
-            return PatchHelper.DoTranspiler(instructions);
-        }
+        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) { return PatchHelper.DoTranspiler(instructions); }
     }
 
     [HarmonyPatch(typeof(SPHCamera), "Update")]
@@ -158,29 +191,29 @@ namespace BlenderCamera
                         float newH = Mathf.Clamp(___scrollHeight + (scroll * 10f), ___minHeight, ___maxHeight);
                         ___scrollHeight = newH; ___clampedScrollHeight = newH;
                     } else {
-                        ___distance = Mathf.Clamp(___distance - (scroll * __state.originalZoomSens * 50f), ___minDistance, ___maxDistance);
+                        ___distance = Mathf.Clamp(___distance - (scroll * __state.originalZoomSens * 150f), ___minDistance, ___maxDistance);
                     }
                 }
 
-                // PAN LOGIC (Separate handling for RMB and Shift+MMB to allow custom directions)
+                // PAN LOGIC (SPH Mapping Fix)
                 float s = ___distance * 0.02f;
                 Vector3 forward = Quaternion.Euler(0, ___camHdg, 0) * Vector3.forward;
                 Vector3 right = Quaternion.Euler(0, ___camHdg, 0) * Vector3.right;
 
-                if (UnityEngine.Input.GetMouseButton(1)) { // RMB: Normal Mapping
+                if (UnityEngine.Input.GetMouseButton(1)) {
                     float mx = UnityEngine.Input.GetAxis("Mouse X");
                     float my = UnityEngine.Input.GetAxis("Mouse Y");
                     ___endPos -= (forward * mx * s) + (right * (-my) * s);
                     if (___pivot != null) ___pivot.transform.position = ___endPos;
                 }
-                else if (UnityEngine.Input.GetMouseButton(2) && UnityEngine.Input.GetKey(KeyCode.LeftShift)) { // Shift+MMB: Inverted Mapping
+                else if (UnityEngine.Input.GetMouseButton(2) && UnityEngine.Input.GetKey(KeyCode.LeftShift)) {
                     float mx = UnityEngine.Input.GetAxis("Mouse X");
                     float my = UnityEngine.Input.GetAxis("Mouse Y");
-                    ___endPos += (forward * mx * s) + (right * (-my) * s); // Using += to invert
+                    ___endPos += (forward * mx * s) + (right * (-my) * s);
                     if (___pivot != null) ___pivot.transform.position = ___endPos;
                 }
 
-                // ORBIT LOGIC (MMB only, no Shift)
+                // ORBIT LOGIC
                 if (UnityEngine.Input.GetMouseButton(2) && !UnityEngine.Input.GetKey(KeyCode.LeftShift)) {
                     ___camHdg += UnityEngine.Input.GetAxis("Mouse X") * 0.05f;
                     ___camPitch = Mathf.Clamp(___camPitch - UnityEngine.Input.GetAxis("Mouse Y") * 0.05f, ___minPitch, ___maxPitch);
@@ -193,9 +226,7 @@ namespace BlenderCamera
             ___mouseZoomSensitivity = __state.originalZoomSens; 
             return __exception; 
         }
-        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
-            return PatchHelper.DoTranspiler(instructions);
-        }
+        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) { return PatchHelper.DoTranspiler(instructions); }
     }
 
     [HarmonyPatch(typeof(FlightCamera), "LateUpdate")]
@@ -222,16 +253,7 @@ namespace BlenderCamera
             ___orbitSensitivity = __state; 
             return __exception; 
         }
-        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
-            return PatchHelper.DoTranspiler(instructions);
-        }
-    }
-
-    [HarmonyPatch(typeof(FlightCamera), "UpdateCameraTransform")]
-    public static class FlightUpdateCameraTransformPatch {
-        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
-            return PatchHelper.DoTranspiler(instructions);
-        }
+        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) { return PatchHelper.DoTranspiler(instructions); }
     }
 
     [HarmonyPatch(typeof(PlanetariumCamera), "LateUpdate")]
@@ -248,14 +270,48 @@ namespace BlenderCamera
                 }
             } finally { GlobalInputInterceptor.IsInternalCall = false; }
         }
-        static Exception Finalizer(Exception __exception) { 
-            GlobalInputInterceptor.IsInternalCall = false; 
-            return __exception; 
-        }
-        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
-            return PatchHelper.DoTranspiler(instructions);
-        }
+        static Exception Finalizer(Exception __exception) { GlobalInputInterceptor.IsInternalCall = false; return __exception; }
+        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) { return PatchHelper.DoTranspiler(instructions); }
     }
+
+    // ============================================================
+    // KSC CHAPTER (SpaceCenterCamera2)
+    // ============================================================
+    [HarmonyPatch(typeof(SpaceCenterCamera2), "Update")]
+    public static class KSCPatch {
+        static void Postfix(ref float ___rotationAngle, ref float ___elevationAngle, ref Vector3 ___pos, ref float ___zoom, float ___elevationMin, float ___elevationMax, float ___zoomMin, float ___zoomMax) {
+            GlobalInputInterceptor.IsInternalCall = true;
+            try {
+                // ZOOM LOGIC (Recovering what we silenced in Interceptor)
+                float scroll = GameSettings.AXIS_MOUSEWHEEL.GetAxis();
+                if (Mathf.Abs(scroll) > 0.001f) {
+                    ___zoom = Mathf.Clamp(___zoom - (scroll * 400f), ___zoomMin, ___zoomMax);
+                }
+
+                // PAN LOGIC (Lowered sensitivity from 0.15 -> 0.03)
+                bool isPanning = UnityEngine.Input.GetMouseButton(1) || (UnityEngine.Input.GetMouseButton(2) && UnityEngine.Input.GetKey(KeyCode.LeftShift));
+                if (isPanning) {
+                    float mx = UnityEngine.Input.GetAxis("Mouse X");
+                    float my = UnityEngine.Input.GetAxis("Mouse Y");
+                    float s = ___zoom * 0.03f; 
+                    Vector3 forward = Quaternion.Euler(0, ___rotationAngle, 0) * Vector3.forward;
+                    Vector3 right = Quaternion.Euler(0, ___rotationAngle, 0) * Vector3.right;
+                    ___pos -= (right * mx * s) + (forward * my * s);
+                }
+
+                // ORBIT LOGIC (MMB only)
+                if (UnityEngine.Input.GetMouseButton(2) && !UnityEngine.Input.GetKey(KeyCode.LeftShift)) {
+                    ___rotationAngle += UnityEngine.Input.GetAxis("Mouse X") * 2f;
+                    ___elevationAngle = Mathf.Clamp(___elevationAngle - UnityEngine.Input.GetAxis("Mouse Y") * 2f, ___elevationMin, ___elevationMax);
+                }
+            } finally { GlobalInputInterceptor.IsInternalCall = false; }
+        }
+        static Exception Finalizer(Exception __exception) { GlobalInputInterceptor.IsInternalCall = false; return __exception; }
+        [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); }
+    }
+
+    [HarmonyPatch(typeof(SpaceCenterCamera2), "InputCamera")] public static class KSCInputCameraPatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
+    [HarmonyPatch(typeof(SpaceCenterCamera2), "InputMovement")] public static class KSCInputMovementPatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
 
     // --- DEEP INTERCEPTION ---
     [HarmonyPatch(typeof(EditorLogic), "Update")] public static class EditorLogicUpdatePatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }

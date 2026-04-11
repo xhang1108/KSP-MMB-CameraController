@@ -31,7 +31,11 @@ A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera
 | **Right Mouse** | Orbit | **Pan** |
 
 ### KSC (Kerbal Space Center)
-* **Status**: Planned / Under Investigation
+| Action | Original Function | New Function (Blender Style) |
+| :--- | :--- | :--- |
+| **Middle Mouse** | Pan | **Orbit** |
+| **Right Mouse** | Orbit | **Pan** |
+| **Shift + MMB** | None | **Pan** |
 
 ## Installation
 
