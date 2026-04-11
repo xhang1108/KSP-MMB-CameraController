@@ -22,3 +22,6 @@ compile_output.txt
 # System Files
 .DS_Store
 Thumbs.db
+
+# Project Workspace Files
+other/
