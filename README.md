@@ -7,8 +7,8 @@ A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera
 ### Flight Mode
 | Action | Original Function | New Function |
 | :--- | :--- | :--- |
-| **Middle Mouse (Drag)** | FreeLook / Offset | **Orbit** |
-| **Right Mouse Button (RMB)** | Orbit | **FreeLook / Offset** |
+| **Middle Mouse (Drag)** | Offset | **Orbit** |
+| **Right Mouse Button (RMB)** | Orbit | **Offset** |
 
 ### VAB (Editors)
 | Action | Original Function | New Function |
@@ -23,7 +23,10 @@ A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera
 | **Middle Mouse (Drag)** | None | **Orbit (Adaptive)** |
 
 ### SPH
-* **Status**: Planned / Under Investigation
+| Action | Original Function | New Function |
+| :--- | :--- | :--- |
+| **Middle Mouse (Drag)** | FreeLook | **Orbit** |
+| **Right Mouse Button (RMB)** | Orbit | **FreeLook** |
 
 ### KSC (Kerbal Space Center)
 * **Status**: Planned / Under Investigation
