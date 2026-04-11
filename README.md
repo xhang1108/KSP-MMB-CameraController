@@ -16,6 +16,7 @@ A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera
 | **Middle Mouse (Drag)** | Zoom | **Orbit** |
 | **Scroll Wheel** | Vertical Pan | **Zoom** |
 | **Shift + Scroll Wheel** | Zoom | **Vertical Pan** |
+| **Shift + MMB** | None | **Vertical Pan** |
 
 ### Planetarium (Map View)
 | Action | Original Function | New Function |
@@ -25,8 +26,9 @@ A patch for Kerbal Space Program (KSP) designed to provide a Blender-like camera
 ### SPH
 | Action | Original Function | New Function |
 | :--- | :--- | :--- |
-| **Middle Mouse (Drag)** | FreeLook | **Orbit** |
-| **Right Mouse Button (RMB)** | Orbit | **FreeLook** |
+| **Middle Mouse** | Pan | **Orbit** |
+| **Shift + MMB** | None | **Pan** |
+| **Right Mouse** | Orbit | **Pan** |
 
 ### KSC (Kerbal Space Center)
 * **Status**: Planned / Under Investigation

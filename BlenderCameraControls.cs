@@ -15,7 +15,7 @@ namespace BlenderCamera
             try {
                 var harmony = new Harmony("com.blender.camera");
                 harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Debug.Log("[BlenderCamera] v1.17.4 Global SPH Siege Active");
+                Debug.Log("[BlenderCamera] v1.19 Blender Shortcuts Active");
             } catch (Exception e) {
                 Debug.LogError("[BlenderCamera] Fatal Patching Error: " + e.Message);
             }
@@ -53,12 +53,8 @@ namespace BlenderCamera
 
         public static float GetAxis(string axisName) {
             if (IsInternalCall) return UnityEngine.Input.GetAxis(axisName);
-            
-            // EDITOR SILENCING
             if (HighLogic.LoadedSceneIsEditor) {
                 if (axisName == "Mouse ScrollWheel") return 0f;
-                
-                // AGGRESSIVE SPH SILENCING: If RMB is down in SPH, kill all Mouse X/Y for non-mod logic
                 if (EditorDriver.editorFacility == EditorFacility.SPH && (axisName == "Mouse X" || axisName == "Mouse Y")) {
                     if (UnityEngine.Input.GetMouseButton(1)) return 0f;
                 }
@@ -125,8 +121,15 @@ namespace BlenderCamera
                     }
                 }
                 if (UnityEngine.Input.GetMouseButton(2)) {
-                    ___camHdg += UnityEngine.Input.GetAxis("Mouse X") * 0.05f;
-                    ___camPitch = Mathf.Clamp(___camPitch - UnityEngine.Input.GetAxis("Mouse Y") * 0.05f, ___minPitch, ___maxPitch);
+                    if (UnityEngine.Input.GetKey(KeyCode.LeftShift)) {
+                        // Shift + MMB Panning for VAB (Height tuning)
+                        float my = UnityEngine.Input.GetAxis("Mouse Y");
+                        float newH = Mathf.Clamp(___scrollHeight + (my * ___distance * 0.05f), ___minHeight, ___maxHeight);
+                        ___scrollHeight = newH; ___clampedScrollHeight = newH;
+                    } else {
+                        ___camHdg += UnityEngine.Input.GetAxis("Mouse X") * 0.05f;
+                        ___camPitch = Mathf.Clamp(___camPitch - UnityEngine.Input.GetAxis("Mouse Y") * 0.05f, ___minPitch, ___maxPitch);
+                    }
                 }
             } finally { GlobalInputInterceptor.IsInternalCall = false; }
         }
@@ -158,19 +161,29 @@ namespace BlenderCamera
                         ___distance = Mathf.Clamp(___distance - (scroll * __state.originalZoomSens * 50f), ___minDistance, ___maxDistance);
                     }
                 }
-                if (UnityEngine.Input.GetMouseButton(2)) {
-                    ___camHdg += UnityEngine.Input.GetAxis("Mouse X") * 0.05f;
-                    ___camPitch = Mathf.Clamp(___camPitch - UnityEngine.Input.GetAxis("Mouse Y") * 0.05f, ___minPitch, ___maxPitch);
-                }
-                if (UnityEngine.Input.GetMouseButton(1)) {
+
+                // PAN LOGIC (Separate handling for RMB and Shift+MMB to allow custom directions)
+                float s = ___distance * 0.02f;
+                Vector3 forward = Quaternion.Euler(0, ___camHdg, 0) * Vector3.forward;
+                Vector3 right = Quaternion.Euler(0, ___camHdg, 0) * Vector3.right;
+
+                if (UnityEngine.Input.GetMouseButton(1)) { // RMB: Normal Mapping
                     float mx = UnityEngine.Input.GetAxis("Mouse X");
                     float my = UnityEngine.Input.GetAxis("Mouse Y");
-                    float s = ___distance * 0.02f;
-                    Vector3 forward = Quaternion.Euler(0, ___camHdg, 0) * Vector3.forward;
-                    Vector3 right = Quaternion.Euler(0, ___camHdg, 0) * Vector3.right;
-                    // Fix swapped mapping: mx controls forward, my controls right
                     ___endPos -= (forward * mx * s) + (right * (-my) * s);
                     if (___pivot != null) ___pivot.transform.position = ___endPos;
+                }
+                else if (UnityEngine.Input.GetMouseButton(2) && UnityEngine.Input.GetKey(KeyCode.LeftShift)) { // Shift+MMB: Inverted Mapping
+                    float mx = UnityEngine.Input.GetAxis("Mouse X");
+                    float my = UnityEngine.Input.GetAxis("Mouse Y");
+                    ___endPos += (forward * mx * s) + (right * (-my) * s); // Using += to invert
+                    if (___pivot != null) ___pivot.transform.position = ___endPos;
+                }
+
+                // ORBIT LOGIC (MMB only, no Shift)
+                if (UnityEngine.Input.GetMouseButton(2) && !UnityEngine.Input.GetKey(KeyCode.LeftShift)) {
+                    ___camHdg += UnityEngine.Input.GetAxis("Mouse X") * 0.05f;
+                    ___camPitch = Mathf.Clamp(___camPitch - UnityEngine.Input.GetAxis("Mouse Y") * 0.05f, ___minPitch, ___maxPitch);
                 }
                 ___offset = Vector3.zero;
             } finally { GlobalInputInterceptor.IsInternalCall = false; }
@@ -247,10 +260,8 @@ namespace BlenderCamera
     // --- DEEP INTERCEPTION ---
     [HarmonyPatch(typeof(EditorLogic), "Update")] public static class EditorLogicUpdatePatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
     [HarmonyPatch(typeof(EditorLogic), "LateUpdate")] public static class EditorLogicLatePatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
-    
     [HarmonyPatch(typeof(SPHCamera), "UpdateCamera")] public static class SPHUpdateCameraPatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
     [HarmonyPatch(typeof(VABCamera), "UpdateCamera")] public static class VABUpdateCameraPatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
-    
     [HarmonyPatch(typeof(CameraMouseLook), "GetMouseLook")] public static class CameraMouseLookPatch { [HarmonyTranspiler] static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> i) { return PatchHelper.DoTranspiler(i); } }
 
     public static class PatchHelper {
