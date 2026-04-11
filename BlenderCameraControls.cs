@@ -192,8 +192,9 @@ namespace BlenderCamera
 
                 // PAN LOGIC (SPH Mapping Fix)
                 float s = ___distance * 0.02f;
-                Vector3 forward = Quaternion.Euler(0, ___camHdg, 0) * Vector3.forward;
-                Vector3 right = Quaternion.Euler(0, ___camHdg, 0) * Vector3.right;
+                Quaternion camRot = Quaternion.Euler(0, ___camHdg, 0);
+                Vector3 forward = camRot * Vector3.forward;
+                Vector3 right = camRot * Vector3.right;
 
                 if (UnityEngine.Input.GetMouseButton(1)) {
                     float mx = UnityEngine.Input.GetAxis("Mouse X");
@@ -289,8 +290,9 @@ namespace BlenderCamera
                     float mx = UnityEngine.Input.GetAxis("Mouse X");
                     float my = UnityEngine.Input.GetAxis("Mouse Y");
                     float s = ___zoom * 0.03f; 
-                    Vector3 forward = Quaternion.Euler(0, ___rotationAngle, 0) * Vector3.forward;
-                    Vector3 right = Quaternion.Euler(0, ___rotationAngle, 0) * Vector3.right;
+                    Quaternion camRot = Quaternion.Euler(0, ___rotationAngle, 0);
+                    Vector3 forward = camRot * Vector3.forward;
+                    Vector3 right = camRot * Vector3.right;
                     ___pos -= (right * mx * s) + (forward * my * s);
                 }
 
