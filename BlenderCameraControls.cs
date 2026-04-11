@@ -12,13 +12,8 @@ namespace BlenderCamera
     {
         void Awake()
         {
-            try {
-                var harmony = new Harmony("com.blender.camera");
-                harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Debug.Log("[BlenderCamera] v1.20 Final Chapter: KSC Seal Active");
-            } catch (Exception e) {
-                Debug.LogError("[BlenderCamera] Fatal Patching Error: " + e.Message);
-            }
+            var harmony = new Harmony("com.blender.camera");
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
         }
     }
 
